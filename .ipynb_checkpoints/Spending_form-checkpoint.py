@@ -49,7 +49,8 @@ with st.form("entry_form", clear_on_submit=True):
 
     selected_date = st.date_input("Date", datetime.today())
     date = f"{selected_date.month}/{selected_date.day}/{selected_date.year}"
-    time = st.time_input("Time", datetime.now().time()).strftime("%I:%M:%S %p")
+
+    time_input = st.text_input("Time (enter manually, e.g. 14:30 or 2:30 PM)", value="")
 
     item = st.text_input("Item").strip()
 
@@ -91,7 +92,7 @@ with st.form("entry_form", clear_on_submit=True):
             row = [
                 date,               # DATE
                 transaction_id,     # No
-                time,               # TIME
+                time_input,         # TIME (user input, no validation)
                 item,               # ITEM
                 category,           # ITEM CATEGORY
                 qty,                # No of ITEM
