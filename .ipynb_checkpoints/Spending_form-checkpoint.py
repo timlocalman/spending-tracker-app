@@ -1,3 +1,4 @@
+import re
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
@@ -14,7 +15,6 @@ gc = gspread.authorize(credentials)
 sheet = gc.open_by_url("https://docs.google.com/spreadsheets/d/1Pugi_cuQw25_GsGpVQAyzjWuuOFRLmP8yGKaIb6unD0/edit?gid=359073504#gid=359073504")
 Spending_Sheet = sheet.worksheet("My Spending Sheet")
 
-# --- HELPER FUNCTION TO GET TODAY'S TRANSACTION COUNT ---
 def get_today_count():
     today = datetime.now()
     today_str = f"{today.month}/{today.day}/{today.year}"
@@ -24,8 +24,7 @@ def get_today_count():
     today_entries = [row for row in all_data if row.get("DATE") == today_str]
     return len(today_entries)
 
-# --- HELPER FUNCTION TO BUILD ITEM->CATEGORY MAPPING ---
-@st.cache_data(ttl=3600)  # cache for 1 hour
+@st.cache_data(ttl=3600)
 def load_item_category_map():
     all_data = Spending_Sheet.get_all_records(expected_headers=[
         "DATE", "No", "TIME", "ITEM", "ITEM CATEGORY", "No of ITEM", "Amount Spent", "WEEK", "MONTH"
@@ -38,10 +37,8 @@ def load_item_category_map():
             item_category_map[item_name] = category
     return item_category_map
 
-# Load item-category map once per hour to avoid hitting API limit
 item_category_map = load_item_category_map()
 
-# --- STREAMLIT FORM ---
 st.title("💸 Spending Tracker Form")
 
 with st.form("entry_form", clear_on_submit=True):
@@ -50,20 +47,18 @@ with st.form("entry_form", clear_on_submit=True):
     selected_date = st.date_input("Date", datetime.today())
     date = f"{selected_date.month}/{selected_date.day}/{selected_date.year}"
 
-    time_input = st.text_input("Time (enter manually, e.g. 14:30 or 2:30 PM)", value="")
+    time_input = st.text_input("Time (only digits and colons allowed, e.g. 14:30 or 14:30:00)", value="")
 
     item = st.text_input("Item").strip()
 
-    # Predict category if possible, else default to "Select Category"
     predicted_category = item_category_map.get(item.lower(), "Select Category")
 
     category_options = [
-        "Select Category",  # Default placeholder
+        "Select Category",
         "Bet", "Bill", "Data", "Food", "Foodstuff", "Money", "Object", "Snacks",
         "transfer", "income", "Airtime", "transport", "Savings"
     ]
 
-    # Show category dropdown with predicted category as default selection
     if predicted_category in category_options:
         default_index = category_options.index(predicted_category)
     else:
@@ -77,7 +72,10 @@ with st.form("entry_form", clear_on_submit=True):
     submitted = st.form_submit_button("Submit")
 
     if submitted:
-        if category == "Select Category":
+        # Regex to match only digits and colons, e.g., 14:30 or 14:30:00
+        if not re.fullmatch(r"[0-9:]+", time_input):
+            st.warning("⚠️ Time field must contain only digits and colons (e.g. 14:30 or 14:30:00).")
+        elif category == "Select Category":
             st.warning("⚠️ Please select a valid item category before submitting.")
         elif not item:
             st.warning("⚠️ Please enter an item name.")
@@ -86,19 +84,19 @@ with st.form("entry_form", clear_on_submit=True):
 
             today_dt = datetime.now()
             monday_dt = today_dt - timedelta(days=today_dt.weekday())
-            monday_of_week = f"{monday_dt.day}-{monday_dt.strftime('%b')}"   # e.g., 2-Jun
-            month_str = today_dt.strftime("%B %Y")                           # e.g., June 2025
+            monday_of_week = f"{monday_dt.day}-{monday_dt.strftime('%b')}"
+            month_str = today_dt.strftime("%B %Y")
 
             row = [
-                date,               # DATE
-                transaction_id,     # No
-                time_input,         # TIME (user input, no validation)
-                item,               # ITEM
-                category,           # ITEM CATEGORY
-                qty,                # No of ITEM
-                amount,             # AMOUNT SPENT
-                monday_of_week,     # WEEK
-                month_str           # MONTH
+                date,
+                transaction_id,
+                time_input,
+                item,
+                category,
+                qty,
+                amount,
+                monday_of_week,
+                month_str
             ]
 
             Spending_Sheet.append_row(row)
