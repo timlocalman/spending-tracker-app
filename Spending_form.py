@@ -6,6 +6,23 @@ from datetime import datetime, timedelta
 import pandas as pd
 import altair as alt
 
+# Budget per category
+category_budgets = {
+    "Bet": 3000,
+    "Bill": 35000,
+    "Data": 11000,
+    "Food": 40000,
+    "Foodstuff": 150000,
+    "Money": 10000,
+    "Object": 50000,
+    "Snacks": 60000,
+    "transfer": 300000,
+    "income": 250000,
+    "Airtime": 1000,
+    "transport": 70000,
+    "Savings": 400000,
+}
+
 # Load credentials from Streamlit secrets
 creds_dict = dict(st.secrets["gcp_service_account"])
 
@@ -90,6 +107,13 @@ col1, col2, col3 = st.columns(3)
 col1.metric(label="🗓️ Total Spent Today", value=f"₦{total_today:,.2f}")
 col2.metric(label="📅 Total This Week", value=f"₦{total_week:,.2f}")
 col3.metric(label="📆 Total This Month", value=f"₦{total_month:,.2f}")
+
+# --- Progress Bar for Total Month Spending ---
+total_budget = sum(b for k, b in category_budgets.items() if k.lower() not in ["savings", "income"])
+percent_used = total_month / total_budget if total_budget > 0 else 0
+
+st.markdown("### 🏁 Total Monthly Budget Progress")
+st.progress(min(percent_used, 1.0), text=f"₦{total_month:,.0f} of ₦{total_budget:,.0f} used ({percent_used*100:.1f}%)")
 
 # --- FORM ---
 with st.form("entry_form", clear_on_submit=True):
@@ -200,3 +224,25 @@ if not item_today_summary.empty:
     st.altair_chart(pie_chart, use_container_width=True)
 else:
     st.info("ℹ️ No spending recorded today (excluding Savings/Income).")
+
+# --- Individual Category Progress Bars ---
+st.markdown("### 📂 Category-wise Budget Progress")
+
+# Filter data for current month only
+df_month = df[df["MONTH"] == datetime.now().strftime("%B %Y")]
+category_summary = df_month.groupby("ITEM CATEGORY", as_index=False)["Amount Spent"].sum()
+
+for category in category_budgets:
+    # Skip income and savings categories for spending progress
+    if category.lower() in ["savings", "income"]:
+        continue
+
+    spent = category_summary.loc[
+        category_summary["ITEM CATEGORY"].str.lower() == category.lower(), "Amount Spent"
+    ].sum()
+
+    budget = category_budgets[category]
+    percent = spent / budget if budget > 0 else 0
+
+    st.write(f"**{category}** - ₦{spent:,.0f} of ₦{budget:,.0f} used ({percent*100:.1f}%)")
+    st.progress(min(percent, 1.0))
