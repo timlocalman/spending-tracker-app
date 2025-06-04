@@ -74,7 +74,7 @@ df["Amount Spent"] = pd.to_numeric(df["Amount Spent"], errors="coerce")
 st.title("💸 Spending Tracker")
 
 with st.container():
-    col1, col2, col3 = st.columns(1 if st.sidebar.checkbox("📱 Mobile Mode") else 3)
+    col1, col2, col3 = st.columns(3)
     col1.metric("🗓️ Today", f"₦{get_today_total_amount():,.2f}")
     col2.metric("📅 This Week", f"₦{get_weekly_total_amount():,.2f}")
     col3.metric("📆 This Month", f"₦{get_monthly_total_amount():,.2f}")
@@ -138,8 +138,11 @@ with st.form("entry_form", clear_on_submit=True):
 df = df[df["ITEM CATEGORY"].str.lower().isin([c.lower() for c in category_budgets if c.lower() not in ["savings", "income"]])]
 df["DATE_dt"] = pd.to_datetime(df["DATE"], format="%m/%d/%Y", errors='coerce')
 
+# --- DROPDOWN TO SELECT CHART VIEW ---
+chart_view = st.selectbox("📊 Select Chart to Display", ["Weekly Spending", "Today's Breakdown", "Category Progress"])
+
 # --- WEEKLY BAR CHART ---
-with st.expander("📊 Weekly Spending Bar Chart"):
+if chart_view == "Weekly Spending":
     week_start = datetime.now() - timedelta(days=datetime.now().weekday())
     df_week = df[df["DATE_dt"].between(week_start, datetime.now())]
     if not df_week.empty:
@@ -155,7 +158,7 @@ with st.expander("📊 Weekly Spending Bar Chart"):
         st.info("ℹ️ No data for this week yet.")
 
 # --- TODAY PIE CHART ---
-with st.expander("🥧 Today's Spending Breakdown"):
+elif chart_view == "Today's Breakdown":
     today_str = f"{datetime.now().month}/{datetime.now().day}/{datetime.now().year}"
     df_today = df[df["DATE"] == today_str]
     pie_data = df_today.groupby("ITEM")["Amount Spent"].sum().reset_index()
@@ -170,15 +173,15 @@ with st.expander("🥧 Today's Spending Breakdown"):
         st.info("ℹ️ No spending recorded today.")
 
 # --- CATEGORY PROGRESS ---
-st.markdown("### 📂 Category Budget Tracking")
-df_month = df[df["MONTH"] == datetime.now().strftime("%B %Y")]
-cat_month = df_month.groupby("ITEM CATEGORY")["Amount Spent"].sum().reset_index()
+elif chart_view == "Category Progress":
+    st.markdown("### 📂 Category Budget Tracking")
+    df_month = df[df["MONTH"] == datetime.now().strftime("%B %Y")]
+    cat_month = df_month.groupby("ITEM CATEGORY")["Amount Spent"].sum().reset_index()
 
-for cat, budget in category_budgets.items():
-    if cat.lower() in ["savings", "income"]:
-        continue
-    spent = cat_month.loc[cat_month["ITEM CATEGORY"].str.lower() == cat.lower(), "Amount Spent"].sum()
-    percent = spent / budget if budget > 0 else 0
-    st.markdown(f"**{cat}** — ₦{spent:,.0f} / ₦{budget:,.0f} ({percent*100:.1f}%)")
-    st.progress(min(percent, 1.0))
-
+    for cat, budget in category_budgets.items():
+        if cat.lower() in ["savings", "income"]:
+            continue
+        spent = cat_month.loc[cat_month["ITEM CATEGORY"].str.lower() == cat.lower(), "Amount Spent"].sum()
+        percent = spent / budget if budget > 0 else 0
+        st.markdown(f"**{cat}** — ₦{spent:,.0f} / ₦{budget:,.0f} ({percent*100:.1f}%)")
+        st.progress(min(percent, 1.0))
