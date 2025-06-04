@@ -146,6 +146,7 @@ with st.form("entry_form", clear_on_submit=True):
             ]
 
             Spending_Sheet.append_row(row)
+            st.cache_data.clear()  # <-- Clear cache so data reloads
             st.success("✅ Transaction submitted successfully!")
 
 # --- VISUALIZATIONS ---
@@ -161,26 +162,21 @@ df = df[df["ITEM CATEGORY"].str.lower().isin([
     "transfer", "airtime", "transport"
 ])]
 
-# Convert DATE column to datetime for filtering
-df["DATE_dt"] = pd.to_datetime(df["DATE"], format="%m/%d/%Y", errors='coerce')
+# Prepare daily line chart for current week
+today = datetime.now()
+monday = today - timedelta(days=today.weekday())
+sunday = monday + timedelta(days=6)
 
-# --- Weekly Line Chart for Current Week (daily) ---
-monday_dt = datetime.now() - timedelta(days=datetime.now().weekday())
-sunday_dt = monday_dt + timedelta(days=6)
-df_week = df[(df["DATE_dt"] >= monday_dt) & (df["DATE_dt"] <= datetime.now())]
+# Convert DATE to datetime objects for filtering
+df["DATE_dt"] = pd.to_datetime(df["DATE"], format="%m/%d/%Y", errors='coerce')
+df_week = df[(df["DATE_dt"] >= monday) & (df["DATE_dt"] <= today)]
 
 daily_summary = df_week.groupby("DATE_dt", as_index=False)["Amount Spent"].sum()
-
-# Convert again to datetime to avoid dt accessor errors
-daily_summary["DATE_dt"] = pd.to_datetime(daily_summary["DATE_dt"])
-
-daily_summary = daily_summary.sort_values("DATE_dt")
 daily_summary["Day"] = daily_summary["DATE_dt"].dt.strftime("%a")
 
 line_chart = alt.Chart(daily_summary).mark_line(point=True).encode(
-    x=alt.X("Day", sort=list(daily_summary["Day"])),
-    y="Amount Spent:Q",
-    tooltip=["Day", "Amount Spent"]
+    x=alt.X("Day:N", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]),
+    y="Amount Spent:Q"
 ).properties(
     title="📈 Daily Spending This Week",
     height=300
@@ -188,7 +184,7 @@ line_chart = alt.Chart(daily_summary).mark_line(point=True).encode(
 st.altair_chart(line_chart, use_container_width=True)
 
 # --- Daily Pie Chart ---
-today_str = f"{datetime.now().month}/{datetime.now().day}/{datetime.now().year}"
+today_str = f"{today.month}/{today.day}/{today.year}"
 df_today = df[df["DATE"] == today_str]
 item_today_summary = df_today.groupby("ITEM", as_index=False)["Amount Spent"].sum()
 
