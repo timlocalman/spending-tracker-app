@@ -198,14 +198,15 @@ df_week = df[(df["DATE_dt"] >= monday) & (df["DATE_dt"] <= today)]
 daily_summary = df_week.groupby("DATE_dt", as_index=False)["Amount Spent"].sum()
 daily_summary["Day"] = daily_summary["DATE_dt"].dt.strftime("%a")
 
-line_chart = alt.Chart(daily_summary).mark_line(point=True).encode(
+bar_chart = alt.Chart(daily_summary).mark_bar().encode(
     x=alt.X("Day:N", sort=["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]),
-    y="Amount Spent:Q"
+    y="Amount Spent:Q",
+    tooltip=["Day", "Amount Spent"]
 ).properties(
-    title="📈 Daily Spending This Week",
+    title="📊 Daily Spending This Week (Bar Chart)",
     height=300
 )
-st.altair_chart(line_chart, use_container_width=True)
+st.altair_chart(bar_chart, use_container_width=True)
 
 # --- Daily Pie Chart ---
 today_str = f"{today.month}/{today.day}/{today.year}"
