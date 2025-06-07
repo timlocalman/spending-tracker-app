@@ -70,14 +70,59 @@ all_data = load_all_data()
 df = pd.DataFrame(all_data)
 df["Amount Spent"] = pd.to_numeric(df["Amount Spent"], errors="coerce")
 
+# --- Recommendation: Items likely to buy today based on past weekday purchases ---
+def recommend_items_for_today(df, top_n=5):
+    if df.empty:
+        return []
+    if "DATE" not in df or "ITEM" not in df:
+        return []
+    
+    # Convert DATE to datetime
+    df["DATE_dt"] = pd.to_datetime(df["DATE"], format="%m/%d/%Y", errors='coerce')
+    # Get today's weekday string
+    today_weekday = datetime.now().strftime("%A")
+    # Add weekday column
+    df["Weekday"] = df["DATE_dt"].dt.day_name()
+    # Filter to transactions on same weekday
+    df_today_weekday = df[df["Weekday"] == today_weekday]
+    # Count items frequency
+    item_counts = df_today_weekday["ITEM"].str.strip().value_counts()
+    # Return top N items as list
+    return item_counts.head(top_n).index.tolist()
+
+likely_items = recommend_items_for_today(df)
+
 # --- METRICS ---
 st.title("💸 Spending Tracker")
+
+# --- Show recommendations ---
+if likely_items:
+    st.markdown("### 🛒 Items You Might Buy Today (based on past purchases)")
+    cols = st.columns(len(likely_items))
+    for idx, recommended_item in enumerate(likely_items):
+        if cols[idx].button(recommended_item):
+            st.session_state["prefill_item"] = recommended_item
 
 with st.container():
     col1, col2, col3 = st.columns(3)
     col1.metric("🗓️ Today", f"₦{get_today_total_amount():,.2f}")
     col2.metric("📅 This Week", f"₦{get_weekly_total_amount():,.2f}")
     col3.metric("📆 This Month", f"₦{get_monthly_total_amount():,.2f}")
+
+# --- TODAY'S TRANSACTIONS TABLE ---
+st.markdown("### 📋 Today's Transactions")
+
+today_str = f"{datetime.now().month}/{datetime.now().day}/{datetime.now().year}"
+df_today = df[df["DATE"] == today_str]
+
+if not df_today.empty:
+    st.dataframe(
+        df_today[["TIME", "ITEM", "ITEM CATEGORY", "No of ITEM", "Amount Spent"]],
+        use_container_width=True,
+        hide_index=True
+    )
+else:
+    st.info("ℹ️ No transactions recorded yet today.")
 
 # --- TOTAL PROGRESS ---
 total_month = get_monthly_total_amount()
@@ -93,7 +138,10 @@ with st.form("entry_form", clear_on_submit=True):
 
     selected_date = st.date_input("📆 Date", datetime.today())
     time_input = st.text_input("⏰ Time (e.g. 14:30 or 14:30:00)")
-    item = st.text_input("🛒 Item").strip()
+
+    # Use prefill if user clicked recommended button
+    prefill_item = st.session_state.get("prefill_item", "")
+    item = st.text_input("🛒 Item", value=prefill_item).strip()
 
     predicted_category = item_category_map.get(item.lower(), "Select Category")
     category_options = ["Select Category"] + list(category_budgets.keys())
@@ -133,6 +181,9 @@ with st.form("entry_form", clear_on_submit=True):
             Spending_Sheet.append_row(new_row)
             st.cache_data.clear()
             st.success("✅ Transaction submitted!")
+            # Clear prefill after submit
+            if "prefill_item" in st.session_state:
+                del st.session_state["prefill_item"]
 
 # --- FILTERED DATAFRAME FOR VISUALS ---
 df = df[df["ITEM CATEGORY"].str.lower().isin([c.lower() for c in category_budgets if c.lower() not in ["savings", "income"]])]
