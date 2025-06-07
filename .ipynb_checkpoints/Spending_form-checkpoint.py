@@ -94,6 +94,11 @@ likely_items = recommend_items_for_today(df)
 
 # --- METRICS ---
 st.title("💸 Spending Tracker")
+with st.container():
+    col1, col2, col3 = st.columns(3)
+    col1.metric("🗓️ Today", f"₦{get_today_total_amount():,.2f}")
+    col2.metric("📅 This Week", f"₦{get_weekly_total_amount():,.2f}")
+    col3.metric("📆 This Month", f"₦{get_monthly_total_amount():,.2f}")
 
 # --- Show recommendations ---
 if likely_items:
@@ -103,26 +108,6 @@ if likely_items:
         if cols[idx].button(recommended_item):
             st.session_state["prefill_item"] = recommended_item
 
-with st.container():
-    col1, col2, col3 = st.columns(3)
-    col1.metric("🗓️ Today", f"₦{get_today_total_amount():,.2f}")
-    col2.metric("📅 This Week", f"₦{get_weekly_total_amount():,.2f}")
-    col3.metric("📆 This Month", f"₦{get_monthly_total_amount():,.2f}")
-
-# --- TODAY'S TRANSACTIONS TABLE ---
-st.markdown("### 📋 Today's Transactions")
-
-today_str = f"{datetime.now().month}/{datetime.now().day}/{datetime.now().year}"
-df_today = df[df["DATE"] == today_str]
-
-if not df_today.empty:
-    st.dataframe(
-        df_today[["TIME", "ITEM", "ITEM CATEGORY", "No of ITEM", "Amount Spent"]],
-        use_container_width=True,
-        hide_index=True
-    )
-else:
-    st.info("ℹ️ No transactions recorded yet today.")
 
 # --- TOTAL PROGRESS ---
 total_month = get_monthly_total_amount()
@@ -188,7 +173,20 @@ with st.form("entry_form", clear_on_submit=True):
 # --- FILTERED DATAFRAME FOR VISUALS ---
 df = df[df["ITEM CATEGORY"].str.lower().isin([c.lower() for c in category_budgets if c.lower() not in ["savings", "income"]])]
 df["DATE_dt"] = pd.to_datetime(df["DATE"], format="%m/%d/%Y", errors='coerce')
+# --- TODAY'S TRANSACTIONS TABLE ---
+st.markdown("### 📋 Today's Transactions")
 
+today_str = f"{datetime.now().month}/{datetime.now().day}/{datetime.now().year}"
+df_today = df[df["DATE"] == today_str]
+
+if not df_today.empty:
+    st.dataframe(
+        df_today[["TIME", "ITEM", "ITEM CATEGORY", "No of ITEM", "Amount Spent"]],
+        use_container_width=True,
+        hide_index=True
+    )
+else:
+    st.info("ℹ️ No transactions recorded yet today.")
 # --- DROPDOWN TO SELECT CHART VIEW ---
 chart_view = st.selectbox("📊 Select Chart to Display", ["Weekly Spending", "Today's Breakdown", "Category Progress"])
 
