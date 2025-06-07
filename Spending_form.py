@@ -99,15 +99,7 @@ with st.container():
     col1.metric("🗓️ Today", f"₦{get_today_total_amount():,.2f}")
     col2.metric("📅 This Week", f"₦{get_weekly_total_amount():,.2f}")
     col3.metric("📆 This Month", f"₦{get_monthly_total_amount():,.2f}")
-
-# --- Show recommendations ---
-if likely_items:
-    st.markdown("### 🛒 Items You Might Buy Today (based on past purchases)")
-    cols = st.columns(len(likely_items))
-    for idx, recommended_item in enumerate(likely_items):
-        if cols[idx].button(recommended_item):
-            st.session_state["prefill_item"] = recommended_item
-
+st.markdown("---")  # Divider line
 
 # --- TOTAL PROGRESS ---
 total_month = get_monthly_total_amount()
@@ -116,7 +108,16 @@ percent_used = total_month / total_budget if total_budget > 0 else 0
 
 st.markdown("### 🏁 Monthly Budget Usage")
 st.progress(min(percent_used, 1.0), text=f"₦{total_month:,.0f} of ₦{total_budget:,.0f} used ({percent_used*100:.1f}%)")
+st.markdown("---")  # Divider line
 
+# --- Show recommendations ---
+if likely_items:
+    st.markdown("### 🛒 Items You Might Buy Today (based on past purchases)")
+    cols = st.columns(len(likely_items))
+    for idx, recommended_item in enumerate(likely_items):
+        if cols[idx].button(recommended_item):
+            st.session_state["prefill_item"] = recommended_item
+st.markdown("---")  # Divider line
 # --- INPUT FORM ---
 with st.form("entry_form", clear_on_submit=True):
     st.markdown("### ✍️ Add New Transaction")
@@ -169,7 +170,7 @@ with st.form("entry_form", clear_on_submit=True):
             # Clear prefill after submit
             if "prefill_item" in st.session_state:
                 del st.session_state["prefill_item"]
-
+st.markdown("---")  # Divider line
 # --- FILTERED DATAFRAME FOR VISUALS ---
 df = df[df["ITEM CATEGORY"].str.lower().isin([c.lower() for c in category_budgets if c.lower() not in ["savings", "income"]])]
 df["DATE_dt"] = pd.to_datetime(df["DATE"], format="%m/%d/%Y", errors='coerce')
@@ -187,6 +188,7 @@ if not df_today.empty:
     )
 else:
     st.info("ℹ️ No transactions recorded yet today.")
+st.markdown("---")  # Divider line    
 # --- DROPDOWN TO SELECT CHART VIEW ---
 chart_view = st.selectbox("📊 Select Chart to Display", ["Weekly Spending", "Today's Breakdown", "Category Progress"])
 
