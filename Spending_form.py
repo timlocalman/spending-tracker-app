@@ -188,7 +188,25 @@ if not df_today.empty:
     )
 else:
     st.info("ℹ️ No transactions recorded yet today.")
-st.markdown("---")  # Divider line    
+st.markdown("---")  # Divider line
+st.markdown("### 📅 Last Time Each Item Was Bought (by Category)")
+
+# Dropdown to filter by category
+all_categories = sorted(df["ITEM CATEGORY"].dropna().unique())
+selected_cat = st.selectbox("📂 Select Category", all_categories)
+
+if selected_cat:
+    df_cat = df[df["ITEM CATEGORY"] == selected_cat]
+    # Get last purchase date per item
+    last_purchase = df_cat.groupby("ITEM")["DATE_dt"].max().reset_index()
+    last_purchase["Last Bought"] = last_purchase["DATE_dt"].dt.strftime("%B %d")
+    last_purchase = last_purchase[["ITEM", "Last Bought"]].rename(columns={"ITEM": "Item"})
+
+    if not last_purchase.empty:
+        st.dataframe(last_purchase.sort_values("Last Bought", ascending=False), use_container_width=True)
+    else:
+        st.info("ℹ️ No purchases found in this category.")
+st.markdown("---")  # Divider line
 # --- DROPDOWN TO SELECT CHART VIEW ---
 chart_view = st.selectbox("📊 Select Chart to Display", ["Weekly Spending", "Today's Breakdown", "Category Progress"])
 
